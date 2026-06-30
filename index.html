@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Firmar Word - Funcional</title>
+
+```
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.5/pizzip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.1/docxtemplater.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<style>
+    canvas {
+        border: 1px solid black;
+        cursor: crosshair;
+    }
+</style>
+```
+
+</head>
+<body>
+
+<h2>Firmar Documento Word</h2>
+
+<input type="file" id="fileInput" accept=".docx"><br><br>
+
+<p>Dibuja tu firma:</p>
+<canvas id="canvas" width="400" height="200"></canvas><br>
+<button onclick="clearCanvas()">Limpiar</button><br><br>
+
+<button onclick="firmar()">Firmar y Descargar</button>
+
+<script>
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+let drawing = false;
+
+canvas.addEventListener("mousedown", () => drawing = true);
+canvas.addEventListener("mouseup", () => drawing = false);
+canvas.addEventListener("mousemove", draw);
+
+function draw(e) {
+    if (!drawing) return;
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+
+    ctx.lineTo(e.offsetX, e.offsetY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(e.offsetX, e.offsetY);
+}
+
+function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+async function firmar() {
+    let file = document.getElementById("fileInput").files[0];
+    if (!file) {
+        alert("Sube un archivo Word primero");
+        return;
+    }
+
+    let reader = new FileReader();
+
+    reader.onload = function(event) {
+        try {
+            let zip = new PizZip(event.target.result);
+            let doc = new window.docxtemplater(zip);
+
+            let firma = canvas.toDataURL("image/png");
+
+            // 🔥 Insertamos texto en vez de imagen (para evitar crash)
+            doc.setData({
+                firma: "Firma digital (base64): " + firma.substring(0,100) + "..."
+            });
+
+            doc.render();
+
+            let blob = doc.getZip().generate({
+                type: "blob",
+                mimeType:
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            });
+
+            saveAs(blob, "Documento_Firmado.docx");
+
+        } catch (error) {
+            console.error(error);
+            alert("Error procesando el documento:\n" + error.message);
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+</script>
+
+</body>
+</html>
